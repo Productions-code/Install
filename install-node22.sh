@@ -3,22 +3,34 @@ set -eu
 
 # Install Node.js 22.x (LTS) for Linux from official Node.js binaries.
 # Default: latest-v22.x (otomatis ikut update security/patch 22.x).
+#
+# Features:
+# - Auto-detect arch
+# - Download from official Node.js release dir
+# - Verify SHA256 via SHASUMS256.txt
+# - Auto-install xz if missing (apt/dnf/yum/pacman/apk/zypper)
+# - Fallback to .tar.gz if xz can't be used
+# - Install into /usr/local/lib/nodejs and symlink to /usr/local/node + /usr/local/bin
+# - zsh/bash profile PATH append (idempotent)
 
 # ===== Config =====
 PREFIX="${PREFIX:-/usr/local}"
-INSTALL_ROOT="${INSTALL_ROOT:-$PREFIX/lib/nodejs}"   # tempat ekstrak
-NODE_MAJOR="${1:-22}"                                # default 22
-NODE_VERSION="${2:-}"                                # optional: "22.21.1" (tanpa 'v')
-CHANNEL="${CHANNEL:-latest-v${NODE_MAJOR}.x}"         # default latest-v22.x
+INSTALL_ROOT="${INSTALL_ROOT:-$PREFIX/lib/nodejs}"    # tempat ekstrak
+NODE_MAJOR="${1:-22}"                                 # default 22
+NODE_VERSION="${2:-}"                                 # optional: "22.21.1" (tanpa 'v')
+CHANNEL="${CHANNEL:-latest-v${NODE_MAJOR}.x}"          # default latest-v22.x
+AUTO_INSTALL_DEPS="${AUTO_INSTALL_DEPS:-1}"            # 1 = auto install xz, 0 = tidak
+FORCE_TARGZ="${FORCE_TARGZ:-0}"                        # 1 = paksa pakai tar.gz
 
 # ===== Helpers =====
-need_cmd() { command -v "$1" >/dev/null 2>&1 || { echo "Error: butuh command '$1'"; exit 1; }; }
+need_cmd() { command -v "$1" >/dev/null 2>&1 || return 1; }
+die() { echo "Error: $*" >&2; exit 1; }
 
 as_root() {
   if [ "$(id -u)" -eq 0 ]; then
     sh -c "$*"
   else
-    need_cmd sudo
+    need_cmd sudo || die "butuh sudo (atau jalankan sebagai root)"
     sudo sh -c "$*"
   fi
 }
@@ -32,7 +44,7 @@ detect_arch() {
     ppc64le) echo "ppc64le" ;;
     s390x) echo "s390x" ;;
     riscv64) echo "riscv64" ;;
-    *) echo "Error: arsitektur tidak didukung: $a" >&2; exit 1 ;;
+    *) die "arsitektur tidak didukung: $a" ;;
   esac
 }
 
@@ -45,19 +57,68 @@ append_once() {
   fi
 }
 
+detect_pkg_mgr() {
+  if need_cmd apt-get; then echo "apt"
+  elif need_cmd dnf; then echo "dnf"
+  elif need_cmd yum; then echo "yum"
+  elif need_cmd pacman; then echo "pacman"
+  elif need_cmd apk; then echo "apk"
+  elif need_cmd zypper; then echo "zypper"
+  else echo ""
+  fi
+}
+
+install_xz_if_missing() {
+  if need_cmd xz; then
+    return 0
+  fi
+
+  [ "$AUTO_INSTALL_DEPS" = "1" ] || die "xz belum terpasang. Install dulu (contoh: apt install xz-utils) lalu ulangi."
+
+  pm="$(detect_pkg_mgr)"
+  [ -n "$pm" ] || die "xz belum terpasang dan package manager tidak terdeteksi. Install xz manual."
+
+  echo "==> xz tidak ditemukan. Install dependency (xz) via $pm ..."
+  case "$pm" in
+    apt)
+      as_root "apt-get update -y"
+      as_root "apt-get install -y xz-utils"
+      ;;
+    dnf)
+      as_root "dnf install -y xz"
+      ;;
+    yum)
+      as_root "yum install -y xz"
+      ;;
+    pacman)
+      as_root "pacman -Sy --noconfirm xz"
+      ;;
+    apk)
+      as_root "apk add --no-cache xz"
+      ;;
+    zypper)
+      as_root "zypper --non-interactive install xz"
+      ;;
+    *)
+      die "package manager tidak didukung: $pm"
+      ;;
+  esac
+
+  need_cmd xz || die "xz masih tidak tersedia setelah install. Cek repositori/paket."
+}
+
 # ===== Checks =====
-need_cmd curl
-need_cmd tar
-need_cmd sha256sum
-need_cmd awk
-need_cmd grep
+need_cmd curl || die "butuh curl"
+need_cmd tar || die "butuh tar"
+need_cmd sha256sum || die "butuh sha256sum"
+need_cmd awk || die "butuh awk"
+need_cmd grep || die "butuh grep"
+need_cmd sed || die "butuh sed"
+
 ARCH="$(detect_arch)"
 
 OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
-if [ "$OS" != "linux" ]; then
-  echo "Error: script ini khusus Linux. OS terdeteksi: $OS"
-  exit 1
-fi
+[ "$OS" = "linux" ] || die "script ini khusus Linux. OS terdeteksi: $OS"
 
 # ===== Temp dir =====
 TMPDIR="$(mktemp -d)"
@@ -66,13 +127,15 @@ trap cleanup EXIT INT TERM
 
 BASE_URL=""
 FILENAME=""
+EXT="tar.xz"
+
+if [ "$FORCE_TARGZ" = "1" ]; then
+  EXT="tar.gz"
+fi
 
 if [ -n "$NODE_VERSION" ]; then
-  # explicit version, ex: 22.21.1 -> v22.21.1
   BASE_URL="https://nodejs.org/download/release/v${NODE_VERSION}"
-  FILENAME="node-v${NODE_VERSION}-linux-${ARCH}.tar.xz"
 else
-  # channel latest-v22.x (otomatis terbaru 22.x)
   BASE_URL="https://nodejs.org/download/release/${CHANNEL}"
 fi
 
@@ -82,15 +145,32 @@ echo "==> Base URL: $BASE_URL"
 echo "==> Download SHASUMS256.txt"
 curl -fL "$BASE_URL/SHASUMS256.txt" -o "$TMPDIR/SHASUMS256.txt"
 
-if [ -z "$FILENAME" ]; then
-  # ambil nama file tar.xz yang cocok dari SHASUMS
-  FILENAME="$(grep " node-v.*-linux-${ARCH}\.tar\.xz$" "$TMPDIR/SHASUMS256.txt" | awk '{print $2}' | head -n1 || true)"
-  if [ -z "$FILENAME" ]; then
-    echo "Error: tidak menemukan tarball untuk linux-$ARCH di SHASUMS256.txt"
-    echo "Cek manual: $BASE_URL/"
-    exit 1
+# ===== Decide tarball =====
+pick_filename() {
+  ext="$1"
+  grep " node-v.*-linux-${ARCH}\.${ext}$" "$TMPDIR/SHASUMS256.txt" | awk '{print $2}' | head -n1 || true
+}
+
+if [ -n "$NODE_VERSION" ]; then
+  FILENAME="node-v${NODE_VERSION}-linux-${ARCH}.${EXT}"
+else
+  FILENAME="$(pick_filename "$EXT")"
+fi
+
+# Jika tar.xz tidak ketemu, fallback tar.gz
+if [ -z "$FILENAME" ] || ! grep -q " $FILENAME$" "$TMPDIR/SHASUMS256.txt"; then
+  if [ "$EXT" = "tar.xz" ]; then
+    echo "==> tar.xz tidak tersedia untuk linux-$ARCH, fallback ke tar.gz"
+    EXT="tar.gz"
+    if [ -n "$NODE_VERSION" ]; then
+      FILENAME="node-v${NODE_VERSION}-linux-${ARCH}.tar.gz"
+    else
+      FILENAME="$(pick_filename "tar.gz")"
+    fi
   fi
 fi
+
+[ -n "$FILENAME" ] || die "tidak menemukan tarball yang cocok untuk linux-$ARCH. Cek: $BASE_URL/"
 
 echo "==> Tarball: $FILENAME"
 
@@ -103,21 +183,31 @@ echo "==> Verifikasi SHA256 (SHASUMS256.txt)"
 grep " $FILENAME$" "$TMPDIR/SHASUMS256.txt" > "$TMPDIR/SHASUMS256.one"
 ( cd "$TMPDIR" && sha256sum -c SHASUMS256.one )
 
+# ===== Ensure extractor =====
+if [ "$EXT" = "tar.xz" ]; then
+  install_xz_if_missing
+fi
+
 # ===== Install =====
 as_root "mkdir -p '$INSTALL_ROOT'"
 
-# tarball berisi folder seperti: node-v22.xx.x-linux-x64
-NODE_FOLDER="$(echo "$FILENAME" | sed 's/\.tar\.xz$//')"
+NODE_FOLDER="$(echo "$FILENAME" | sed 's/\.tar\.xz$//; s/\.tar\.gz$//')"
 
 echo "==> Extract ke $INSTALL_ROOT"
 as_root "rm -rf '$INSTALL_ROOT/$NODE_FOLDER'"
-as_root "tar -C '$INSTALL_ROOT' -xJf '$TMPDIR/$FILENAME'"
+
+if [ "$EXT" = "tar.xz" ]; then
+  # -J membutuhkan xz
+  as_root "tar -C '$INSTALL_ROOT' -xJf '$TMPDIR/$FILENAME'"
+else
+  as_root "tar -C '$INSTALL_ROOT' -xzf '$TMPDIR/$FILENAME'"
+fi
 
 # symlink supaya gampang dan konsisten
 echo "==> Symlink: $PREFIX/node -> $INSTALL_ROOT/$NODE_FOLDER"
 as_root "ln -sfn '$INSTALL_ROOT/$NODE_FOLDER' '$PREFIX/node'"
 
-# optional: symlink binary ke /usr/local/bin (biasanya sudah di PATH)
+# symlink binary ke /usr/local/bin
 echo "==> Symlink bin ke $PREFIX/bin"
 as_root "mkdir -p '$PREFIX/bin'"
 for b in node npm npx corepack; do
@@ -127,9 +217,11 @@ for b in node npm npx corepack; do
 done
 
 # ===== PATH setup (zsh dulu, fallback profile) =====
-EXPORT_LINE='export PATH="$PATH:/usr/local/bin:/usr/local/node/bin"'
+# Karena bin disymlink ke /usr/local/bin, umumnya sudah ada di PATH.
+# Tapi kita tetap tambahkan secara idempotent kalau belum.
+EXPORT_LINE='export PATH="/usr/local/bin:$PATH"'
 
-if [ "${SHELL:-}" = "/usr/bin/zsh" ] || [ "${SHELL:-}" = "/bin/zsh" ] || command -v zsh >/dev/null 2>&1; then
+if [ "${SHELL:-}" = "/usr/bin/zsh" ] || [ "${SHELL:-}" = "/bin/zsh" ] || need_cmd zsh; then
   echo "==> Tambah PATH ke ~/.zprofile dan ~/.zshrc"
   append_once "$HOME/.zprofile" "$EXPORT_LINE"
   append_once "$HOME/.zshrc" "$EXPORT_LINE"
@@ -141,7 +233,9 @@ else
 fi
 
 # enable corepack (optional)
-"$PREFIX/bin/corepack" enable >/dev/null 2>&1 || true
+if [ -x "$PREFIX/bin/corepack" ]; then
+  "$PREFIX/bin/corepack" enable >/dev/null 2>&1 || true
+fi
 
 echo "==> Verifikasi:"
 "$PREFIX/bin/node" -v
