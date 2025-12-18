@@ -28,3 +28,19 @@ curl -fsSL https://app.factory.ai/cli | sh
 irm https://claude.ai/install.ps1 | iex
 ```
 
+```
+npm install -g @google/gemini-cli
+```
+
+```
+curl -qL https://www.npmjs.com/install.sh | sh
+```
+
+```
+curl -fsSL https://cli.kiro.dev/install | bash
+```
+
+```
+npm install -g @kilocode/cli
+```
+
