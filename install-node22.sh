@@ -12,6 +12,7 @@ set -eu
 # - Fallback to .tar.gz if xz can't be used
 # - Install into /usr/local/lib/nodejs and symlink to /usr/local/node + /usr/local/bin
 # - zsh/bash profile PATH append (idempotent)
+# - Auto-upgrade npm to 11.7.0 (can be disabled)
 
 # ===== Config =====
 PREFIX="${PREFIX:-/usr/local}"
@@ -21,6 +22,10 @@ NODE_VERSION="${2:-}"                                 # optional: "22.21.1" (tan
 CHANNEL="${CHANNEL:-latest-v${NODE_MAJOR}.x}"          # default latest-v22.x
 AUTO_INSTALL_DEPS="${AUTO_INSTALL_DEPS:-1}"            # 1 = auto install xz, 0 = tidak
 FORCE_TARGZ="${FORCE_TARGZ:-0}"                        # 1 = paksa pakai tar.gz
+
+# npm upgrade settings
+NPM_VERSION="${NPM_VERSION:-11.7.0}"                   # paksa npm versi ini
+AUTO_UPDATE_NPM="${AUTO_UPDATE_NPM:-1}"                # 1 = upgrade npm, 0 = skip
 
 # ===== Helpers =====
 need_cmd() { command -v "$1" >/dev/null 2>&1 || return 1; }
@@ -105,6 +110,33 @@ install_xz_if_missing() {
   esac
 
   need_cmd xz || die "xz masih tidak tersedia setelah install. Cek repositori/paket."
+}
+
+maybe_update_npm() {
+  [ "$AUTO_UPDATE_NPM" = "1" ] || return 0
+  [ -n "${NPM_VERSION:-}" ] || return 0
+
+  NPM_BIN="$PREFIX/bin/npm"
+  NODE_BIN="$PREFIX/bin/node"
+
+  [ -x "$NODE_BIN" ] || die "node tidak ditemukan di $NODE_BIN"
+  [ -x "$NPM_BIN" ] || die "npm tidak ditemukan di $NPM_BIN"
+
+  current="$("$NPM_BIN" -v 2>/dev/null || true)"
+  if [ "$current" = "$NPM_VERSION" ]; then
+    echo "==> npm sudah versi $NPM_VERSION"
+    return 0
+  fi
+
+  echo "==> Update npm: ${current:-unknown} -> $NPM_VERSION"
+  if [ "$(id -u)" -eq 0 ]; then
+    "$NPM_BIN" install -g "npm@${NPM_VERSION}"
+  else
+    need_cmd sudo || die "butuh sudo untuk update npm global ke $NPM_VERSION"
+    sudo "$NPM_BIN" install -g "npm@${NPM_VERSION}"
+  fi
+
+  echo "==> npm versi sekarang: $("$NPM_BIN" -v)"
 }
 
 # ===== Checks =====
@@ -197,7 +229,6 @@ echo "==> Extract ke $INSTALL_ROOT"
 as_root "rm -rf '$INSTALL_ROOT/$NODE_FOLDER'"
 
 if [ "$EXT" = "tar.xz" ]; then
-  # -J membutuhkan xz
   as_root "tar -C '$INSTALL_ROOT' -xJf '$TMPDIR/$FILENAME'"
 else
   as_root "tar -C '$INSTALL_ROOT' -xzf '$TMPDIR/$FILENAME'"
@@ -237,7 +268,12 @@ if [ -x "$PREFIX/bin/corepack" ]; then
   "$PREFIX/bin/corepack" enable >/dev/null 2>&1 || true
 fi
 
+# upgrade npm to required version
+maybe_update_npm
+
 echo "==> Verifikasi:"
-"$PREFIX/bin/node" -v
-"$PREFIX/bin/npm" -v
+echo "node: $("$PREFIX/bin/node" -v)"
+echo "npm : $("$PREFIX/bin/npm" -v)"
+echo "path node: $(command -v node || true)"
+echo "path npm : $(command -v npm || true)"
 echo "Selesai."
