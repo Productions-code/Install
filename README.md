@@ -44,3 +44,9 @@ curl -fsSL https://cli.kiro.dev/install | bash
 npm install -g @kilocode/cli
 ```
 
+tambahkan claudflare 
+
+tambahkan code dan cursor 
+https://github.com/docker-reza/Tunnel-Code
+
+git clone https://github.com/docker-reza/Tunnel-Code
