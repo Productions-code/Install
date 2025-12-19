@@ -7,6 +7,7 @@
 [![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)](#-python)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](#-postgresql)
 [![Zsh](https://img.shields.io/badge/Zsh-F15A24?style=for-the-badge&logo=zsh&logoColor=white)](#-zsh)
+[![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](#-docker)
 
 ---
 
@@ -18,6 +19,7 @@
 - [Python](#-python)
 - [PostgreSQL](#-postgresql)
 - [Zsh](#-zsh)
+- [Docker](#-docker)
 - [Other Tools](#-other-tools)
   - [OpenAI Codex](#openai-codex)
   - [Google Gemini CLI](#google-gemini-cli)
@@ -236,7 +238,53 @@ supdate     # System update
 
 ---
 
-## �🛠️ Other Tools
+## 🐳 Docker
+
+**Description:** Docker is a platform for developing, shipping, and running applications in containers. Containers package code and dependencies together, ensuring consistent environments.
+
+**Install:**
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/Productions-code/Install/master/install-docker.sh)
+```
+
+**Usage:**
+```bash
+# Specify user to add to docker group
+DOCKER_USER=myuser bash <(curl -fsSL https://raw.githubusercontent.com/Productions-code/Install/master/install-docker.sh)
+
+# Skip docker-compose
+SKIP_COMPOSE=1 bash <(curl -fsSL https://raw.githubusercontent.com/Productions-code/Install/master/install-docker.sh)
+```
+
+**What's Installed:**
+| Component | Description |
+|-----------|-------------|
+| docker-ce | Docker Engine |
+| docker-ce-cli | Docker CLI |
+| containerd.io | Container runtime |
+| docker-buildx-plugin | Build tool |
+| docker-compose-plugin | Compose v2 |
+
+**Environment Variables:**
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DOCKER_USER` | current user | User to add to docker group |
+| `SKIP_COMPOSE` | `0` | Skip docker-compose |
+| `SKIP_GROUP` | `0` | Skip user group setup |
+| `VERBOSE` | `0` | Enable debug output |
+
+**Quick Commands:**
+```bash
+docker run hello-world     # Test Docker
+docker ps                  # List containers
+docker compose up -d       # Start services
+```
+
+**Official Source:** [https://docs.docker.com/engine/install/](https://docs.docker.com/engine/install/)
+
+---
+
+## 🛠️ Other Tools
 
 ### OpenAI Codex
 
