@@ -6,6 +6,7 @@
 [![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](#-nodejs)
 [![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)](#-python)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](#-postgresql)
+[![Zsh](https://img.shields.io/badge/Zsh-F15A24?style=for-the-badge&logo=zsh&logoColor=white)](#-zsh)
 
 ---
 
@@ -16,6 +17,7 @@
 - [Node.js](#-nodejs)
 - [Python](#-python)
 - [PostgreSQL](#-postgresql)
+- [Zsh](#-zsh)
 - [Other Tools](#-other-tools)
   - [OpenAI Codex](#openai-codex)
   - [Google Gemini CLI](#google-gemini-cli)
@@ -25,8 +27,9 @@
   - [Factory AI](#factory-ai)
   - [Kiro](#kiro)
   - [Kilocode CLI](#kilocode-cli)
-- [Related Projects](#-related-projects)
+- [Tunel-Antigravity-Linux](#-tunel-antigravity-linux)
 - [License](#-license)
+
 
 ---
 
@@ -180,7 +183,60 @@ postgresql://reza:reza@localhost:5432/reza
 
 ---
 
-## 🛠️ Other Tools
+## � Zsh
+
+**Description:** Z Shell (Zsh) is a powerful shell with advanced features including better auto-completion, syntax highlighting, and plugin support. This installer sets up a complete environment with Powerlevel10k theme and useful plugins.
+
+**Install:**
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/Productions-code/Install/master/install-zsh.sh)
+```
+
+**Usage:**
+```bash
+# Install for specific user
+ZSH_USER=myuser bash <(curl -fsSL https://raw.githubusercontent.com/Productions-code/Install/master/install-zsh.sh)
+
+# Skip changing default shell
+SKIP_SHELL=1 bash <(curl -fsSL https://raw.githubusercontent.com/Productions-code/Install/master/install-zsh.sh)
+
+# Verbose mode
+VERBOSE=1 bash <(curl -fsSL https://raw.githubusercontent.com/Productions-code/Install/master/install-zsh.sh)
+```
+
+**What's Included:**
+| Component | Description |
+|-----------|-------------|
+| Zinit | Fast plugin manager |
+| Powerlevel10k | Beautiful theme |
+| zsh-syntax-highlighting | Command highlighting |
+| zsh-autosuggestions | Fish-like suggestions |
+| zsh-completions | Extra completions |
+| fzf | Fuzzy finder |
+| exa | Modern ls |
+| MesloLGS NF | Nerd fonts |
+
+**Environment Variables:**
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ZSH_USER` | current user | User to configure |
+| `VERBOSE` | `0` | Enable debug output |
+| `SKIP_DEPS` | `0` | Skip dependencies |
+| `SKIP_SHELL` | `0` | Skip shell change |
+
+**Useful Aliases (after install):**
+```bash
+profile     # Edit .zshrc
+rprofile    # Reload .zshrc
+gupp "msg"  # Git push with message
+supdate     # System update
+```
+
+**Official Source:** [https://www.zsh.org/](https://www.zsh.org/)
+
+---
+
+## �🛠️ Other Tools
 
 ### OpenAI Codex
 
