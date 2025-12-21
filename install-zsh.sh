@@ -9,7 +9,7 @@ set -eu
 #
 # Features:
 #   - Install Zsh and set as default shell
-#   - Install dependencies (fzf, fd, exa, git, curl)
+#   - Install dependencies (fzf, fd, eza, git, curl)
 #   - Download pre-configured .zshrc
 #   - Setup Zinit plugin manager (auto-installs on first zsh launch)
 #   - Configure NVM integration
@@ -155,27 +155,27 @@ install_dependencies() {
   case "$pm" in
     apt)
       as_root "apt-get update -y"
-      as_root "apt-get install -y git curl wget fzf fd-find exa unzip fontconfig"
+      as_root "apt-get install -y git curl wget fzf fd-find eza unzip fontconfig"
       # Create fd symlink (Debian/Ubuntu uses fdfind)
       if [ -x /usr/bin/fdfind ] && [ ! -x /usr/bin/fd ]; then
         as_root "ln -sf /usr/bin/fdfind /usr/bin/fd"
       fi
       ;;
     dnf)
-      as_root "dnf install -y git curl wget fzf fd-find exa unzip fontconfig"
+      as_root "dnf install -y git curl wget fzf fd-find eza unzip fontconfig"
       ;;
     yum)
       as_root "yum install -y git curl wget unzip fontconfig"
-      # fzf and exa may need manual install on older systems
+      # fzf and eza may need manual install on older systems
       ;;
     pacman)
-      as_root "pacman -Sy --noconfirm git curl wget fzf fd exa unzip ttf-meslo-nerd"
+      as_root "pacman -Sy --noconfirm git curl wget fzf fd eza unzip ttf-meslo-nerd"
       ;;
     apk)
-      as_root "apk add --no-cache git curl wget fzf fd exa unzip font-noto"
+      as_root "apk add --no-cache git curl wget fzf fd eza unzip font-noto"
       ;;
     zypper)
-      as_root "zypper --non-interactive install git curl wget fzf fd exa unzip"
+      as_root "zypper --non-interactive install git curl wget fzf fd eza unzip"
       ;;
     *)
       log_warn "Unsupported package manager for deps: $pm"
@@ -401,7 +401,7 @@ verify_installation() {
   # Dependencies
   echo ""
   echo "Dependencies:"
-  for cmd in git fzf fd exa curl; do
+  for cmd in git fzf fd eza curl; do
     if need_cmd "$cmd"; then
       echo "  $cmd: ✓"
     else
